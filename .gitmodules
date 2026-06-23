@@ -1,0 +1,3 @@
+[submodule "mixer/lib/forge-std"]
+	path = mixer/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
