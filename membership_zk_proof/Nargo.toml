@@ -1,5 +1,5 @@
 [package]
-name = "zk"
+name = "membership_zk_proof"
 type = "bin"
 authors = [""]
 
