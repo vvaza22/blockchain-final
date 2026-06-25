@@ -10,7 +10,7 @@ error InvalidDepositAmount(uint256 sent, uint256 expected);
 error TreeIsFull(uint256 maxCommitments);
 error CommitmentAlreadyExists(uint256 commitment);
 
-event Deposit(uint256 indexed commitment, uint256 indexed index);
+event Deposit(uint256 indexed commitment, uint256 index);
 
 contract GatedMixer {
     uint256 public immutable treeHeight;
