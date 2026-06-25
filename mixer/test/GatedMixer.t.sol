@@ -2,7 +2,14 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {GatedMixer, TreeHeightMustBeNonZero, TreeIsFull, InvalidDepositAmount, CommitmentAlreadyExists, Deposit} from "../src/GatedMixer.sol";
+import {
+    GatedMixer,
+    TreeHeightMustBeNonZero,
+    TreeIsFull,
+    InvalidDepositAmount,
+    CommitmentAlreadyExists,
+    Deposit
+} from "../src/GatedMixer.sol";
 import {ZERO_PLACEHOLDER, MAX_FIELD, MERKLE_TREE_HEIGHT} from "../src/Constants.sol";
 import "forge-std/console.sol";
 import "../src/Helper.sol";
@@ -45,18 +52,10 @@ contract GatedMixerTest is Test {
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidDepositAmount.selector, 0, 1 ether)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector, 0, 1 ether));
         mixer.deposit{value: 0}(commitment);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                InvalidDepositAmount.selector,
-                2 ether,
-                1 ether
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector, 2 ether, 1 ether));
         mixer.deposit{value: 2 ether}(commitment);
     }
 
@@ -65,10 +64,7 @@ contract GatedMixerTest is Test {
         assertEq(mixer.nextIndex(), 0);
 
         uint256 commitment0 = Helper.commitment(42, 1337);
-        uint256 commitment0ZeroPair = Helper.hash2(
-            commitment0,
-            ZERO_PLACEHOLDER
-        );
+        uint256 commitment0ZeroPair = Helper.hash2(commitment0, ZERO_PLACEHOLDER);
         uint256 zeroPair = Helper.hash2(ZERO_PLACEHOLDER, ZERO_PLACEHOLDER);
         uint256 expectedRoot0 = Helper.hash2(commitment0ZeroPair, zeroPair);
         vm.deal(address(this), 1 ether);
@@ -93,14 +89,8 @@ contract GatedMixerTest is Test {
         assertEq(mixer.getSibling(1), commitment01Pair);
 
         uint256 commitment2 = Helper.commitment(44, 1339);
-        uint256 commitment2ZeroPair = Helper.hash2(
-            commitment2,
-            ZERO_PLACEHOLDER
-        );
-        uint256 expectedRoot2 = Helper.hash2(
-            commitment01Pair,
-            commitment2ZeroPair
-        );
+        uint256 commitment2ZeroPair = Helper.hash2(commitment2, ZERO_PLACEHOLDER);
+        uint256 expectedRoot2 = Helper.hash2(commitment01Pair, commitment2ZeroPair);
         vm.deal(address(this), 1 ether);
         vm.expectEmit(true, false, false, true);
         emit Deposit(commitment2, 2);
@@ -112,10 +102,7 @@ contract GatedMixerTest is Test {
 
         uint256 commitment3 = Helper.commitment(45, 1340);
         uint256 commitment23Pair = Helper.hash2(commitment2, commitment3);
-        uint256 expectedRoot3 = Helper.hash2(
-            commitment01Pair,
-            commitment23Pair
-        );
+        uint256 expectedRoot3 = Helper.hash2(commitment01Pair, commitment23Pair);
         vm.deal(address(this), 1 ether);
         vm.expectEmit(true, false, false, true);
         emit Deposit(commitment3, 3);
@@ -139,9 +126,7 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment);
         assertEq(mixer.nextIndex(), 1);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(CommitmentAlreadyExists.selector, commitment)
-        );
+        vm.expectRevert(abi.encodeWithSelector(CommitmentAlreadyExists.selector, commitment));
         mixer.deposit{value: 1 ether}(commitment);
     }
 }

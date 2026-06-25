@@ -73,7 +73,7 @@ contract GatedMixer {
         uint256 right;
 
         for (uint256 level = 0; level < treeHeight; level++) {
-            if(currentIndex % 2 == 0) {
+            if (currentIndex % 2 == 0) {
                 left = currentHash;
                 right = placeholders[level];
                 leftSibling[level] = currentHash;

@@ -9,17 +9,11 @@ library Helper {
         return PoseidonT2.hash([input]);
     }
 
-    function hash2(
-        uint256 left,
-        uint256 right
-    ) internal pure returns (uint256) {
+    function hash2(uint256 left, uint256 right) internal pure returns (uint256) {
         return PoseidonT3.hash([left, right]);
     }
 
-    function commitment(
-        uint256 secret,
-        uint256 nullifier
-    ) internal pure returns (uint256) {
+    function commitment(uint256 secret, uint256 nullifier) internal pure returns (uint256) {
         return hash2(secret, nullifier);
     }
 

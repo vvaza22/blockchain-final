@@ -43,9 +43,7 @@ contract PoseidonTest is Test {
     }
 
     function test_hash_p_minus_one_2() public pure {
-        uint256 result = PoseidonT3.hash(
-            [uint256(MAX_FIELD - 1), uint256(MAX_FIELD - 1)]
-        );
+        uint256 result = PoseidonT3.hash([uint256(MAX_FIELD - 1), uint256(MAX_FIELD - 1)]);
         assertEq(result, POSEIDON_HASH_P_MINUS_ONE_2);
     }
 
