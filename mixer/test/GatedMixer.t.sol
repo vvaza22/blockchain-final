@@ -8,12 +8,15 @@ import {
     TreeIsFull,
     InvalidDepositAmount,
     CommitmentAlreadyExists,
-    Deposit
+    NullifierAlreadyUsed,
+    InvalidProof,
+    Deposit,
+    Withdraw
 } from "../src/GatedMixer.sol";
 import {ZERO_PLACEHOLDER, MAX_FIELD, MERKLE_TREE_HEIGHT} from "../src/Constants.sol";
 import "forge-std/console.sol";
 import "../src/Helper.sol";
-import {HonkVerifier} from "../src/verifiers/membership_zk/Verifier.sol";
+import {HonkVerifier, Errors} from "../src/verifiers/membership_zk/Verifier.sol";
 
 contract GatedMixerTest is Test {
     HonkVerifier verifier;
@@ -156,11 +159,162 @@ contract GatedMixerTest is Test {
         // Read the proof file
         bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
 
+        uint256 merkleRoot = mixer.merkleRoot();
         uint256 balanceBefore = recipientAddress.balance;
-        mixer.withdraw(mixer.merkleRoot(), nullifierHash, payable(recipientAddress), proof);
+        vm.expectEmit(true, false, false, true);
+        emit Withdraw(nullifierHash, recipientAddress, 1 ether);
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
 
         // Make sure the recipient received the funds
         uint256 balanceAfter = recipientAddress.balance;
         assertEq(balanceAfter - balanceBefore, 1 ether);
+    }
+
+    function test_Withdraw_InvalidRecipient() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        // Use a wrong recipient address to test if the proof fails
+        address recipientAddress = address(0xfacade);
+
+        vm.deal(address(this), 1 ether);
+        mixer.deposit{value: 1 ether}(commitment);
+
+        // Make sure current state matches proof inputs
+        assertEq(mixer.merkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
+        assertEq(nullifierHash, 0x20acec73efd6aaaea03cb4edf525c0e4e680a5b4175a4063f7a2456975bd789a);
+
+        // Read the proof file
+        bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        uint256 merkleRoot = mixer.merkleRoot();
+        uint256 balanceBefore = recipientAddress.balance;
+        vm.expectRevert(Errors.SumcheckFailed.selector);
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure nothing changed
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter, balanceBefore);
+    }
+
+    function test_Withdraw_InvalidSecret() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
+
+        uint256 secret = 41;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        address recipientAddress = address(0xdeadbeef);
+
+        vm.deal(address(this), 1 ether);
+        mixer.deposit{value: 1 ether}(commitment);
+
+        // Make sure current state matches proof inputs
+        assertEq(nullifierHash, 0x20acec73efd6aaaea03cb4edf525c0e4e680a5b4175a4063f7a2456975bd789a);
+
+        // Read the proof file
+        bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        uint256 merkleRoot = mixer.merkleRoot();
+        uint256 balanceBefore = recipientAddress.balance;
+        vm.expectRevert(Errors.SumcheckFailed.selector);
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure nothing changed
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter, balanceBefore);
+    }
+
+    function test_Withdraw_InvalidNullifier() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
+
+        uint256 secret = 42;
+        uint256 nullifier = 1338;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        address recipientAddress = address(0xdeadbeef);
+
+        vm.deal(address(this), 1 ether);
+        mixer.deposit{value: 1 ether}(commitment);
+
+        // Read the proof file
+        bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        uint256 merkleRoot = mixer.merkleRoot();
+        uint256 balanceBefore = recipientAddress.balance;
+        vm.expectRevert(Errors.SumcheckFailed.selector);
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure nothing changed
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter, balanceBefore);
+    }
+
+    function test_Withdraw_InvalidNullifierHash() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        // Mess up the nullifier hash only
+        uint256 nullifierHash = Helper.hash1(1338);
+        address recipientAddress = address(0xdeadbeef);
+
+        vm.deal(address(this), 1 ether);
+        mixer.deposit{value: 1 ether}(commitment);
+
+        // Make sure current state matches proof inputs
+        assertEq(mixer.merkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
+
+        // Read the proof file
+        bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        uint256 merkleRoot = mixer.merkleRoot();
+        uint256 balanceBefore = recipientAddress.balance;
+        vm.expectRevert(Errors.SumcheckFailed.selector);
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure nothing changed
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter, balanceBefore);
+    }
+
+    function test_Withdraw_ShouldNotAllowDoubleSpend() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        address recipientAddress = address(0xdeadbeef);
+
+        vm.deal(address(this), 1 ether);
+        mixer.deposit{value: 1 ether}(commitment);
+
+        // Make sure current state matches proof inputs
+        assertEq(mixer.merkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
+        assertEq(nullifierHash, 0x20acec73efd6aaaea03cb4edf525c0e4e680a5b4175a4063f7a2456975bd789a);
+
+        // Read the proof file
+        bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        uint256 merkleRoot = mixer.merkleRoot();
+        uint256 balanceBefore = recipientAddress.balance;
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure the recipient received the funds
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter - balanceBefore, 1 ether);
+
+        // Try to withdraw again with the same nullifier hash
+        vm.expectRevert(abi.encodeWithSelector(NullifierAlreadyUsed.selector, nullifierHash));
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure nothing changed
+        uint256 balanceAfterSecondAttempt = recipientAddress.balance;
+        assertEq(balanceAfterSecondAttempt, balanceAfter);
     }
 }

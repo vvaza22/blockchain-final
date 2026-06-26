@@ -106,6 +106,7 @@ contract GatedMixer {
     }
 
     function deposit(uint256 commitment) external payable {
+        // TODO: Add a protection against reusing the same nullifier with different secret.
         if (msg.value != denomination) revert InvalidDepositAmount(msg.value, denomination);
         if (commitments[commitment]) revert CommitmentAlreadyExists(commitment);
         commitments[commitment] = true;
