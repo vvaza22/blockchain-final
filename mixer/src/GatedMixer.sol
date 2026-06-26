@@ -65,14 +65,19 @@ contract GatedMixer {
         _precompute();
     }
 
-    function getPlaceholder(uint256 level) external view returns (uint256) {
+    function getMerklePlaceholder(uint256 level) external view returns (uint256) {
         if (level > treeHeight) revert OutOfBounds();
         return _merkleTreePlaceholders[level];
     }
 
-    function getSibling(uint256 level) external view returns (uint256) {
+    function getDepositSibling(uint256 level) external view returns (uint256) {
         if (level > treeHeight) revert OutOfBounds();
         return _depositLeftSibling[level];
+    }
+
+    function getAllowanceSibling(uint256 level) external view returns (uint256) {
+        if (level > treeHeight) revert OutOfBounds();
+        return _allowanceLeftSibling[level];
     }
 
     function _precompute() internal {

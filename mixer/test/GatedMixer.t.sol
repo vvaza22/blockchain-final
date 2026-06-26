@@ -54,16 +54,19 @@ contract GatedMixerTest is Test {
         GatedMixer mixer = new GatedMixer(3, 1 ether, address(depositVerifier), address(allowanceVerifier));
 
         uint256 expected = ZERO_PLACEHOLDER;
-        assertEq(mixer.getPlaceholder(0), expected);
-        assertEq(mixer.getSibling(0), expected);
+        assertEq(mixer.getMerklePlaceholder(0), expected);
+        assertEq(mixer.getDepositSibling(0), expected);
+        assertEq(mixer.getAllowanceSibling(0), expected);
 
         expected = Helper.hash2(expected, expected);
-        assertEq(mixer.getPlaceholder(1), expected);
-        assertEq(mixer.getSibling(1), expected);
+        assertEq(mixer.getMerklePlaceholder(1), expected);
+        assertEq(mixer.getDepositSibling(1), expected);
+        assertEq(mixer.getAllowanceSibling(1), expected);
 
         expected = Helper.hash2(expected, expected);
-        assertEq(mixer.getPlaceholder(2), expected);
-        assertEq(mixer.getSibling(2), expected);
+        assertEq(mixer.getMerklePlaceholder(2), expected);
+        assertEq(mixer.getDepositSibling(2), expected);
+        assertEq(mixer.getAllowanceSibling(2), expected);
     }
 
     function test_InvalidDepositAmount() public {
@@ -92,8 +95,8 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment0);
         assertEq(mixer.depositNextIndex(), 1);
         assertEq(mixer.depositMerkleRoot(), expectedRoot0);
-        assertEq(mixer.getSibling(0), commitment0);
-        assertEq(mixer.getSibling(1), commitment0ZeroPair);
+        assertEq(mixer.getDepositSibling(0), commitment0);
+        assertEq(mixer.getDepositSibling(1), commitment0ZeroPair);
 
         uint256 commitment1 = Helper.commitment(43, 1338);
         uint256 commitment01Pair = Helper.hash2(commitment0, commitment1);
@@ -104,8 +107,8 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment1);
         assertEq(mixer.depositNextIndex(), 2);
         assertEq(mixer.depositMerkleRoot(), expectedRoot1);
-        assertEq(mixer.getSibling(0), commitment0);
-        assertEq(mixer.getSibling(1), commitment01Pair);
+        assertEq(mixer.getDepositSibling(0), commitment0);
+        assertEq(mixer.getDepositSibling(1), commitment01Pair);
 
         uint256 commitment2 = Helper.commitment(44, 1339);
         uint256 commitment2ZeroPair = Helper.hash2(commitment2, ZERO_PLACEHOLDER);
@@ -116,8 +119,8 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment2);
         assertEq(mixer.depositNextIndex(), 3);
         assertEq(mixer.depositMerkleRoot(), expectedRoot2);
-        assertEq(mixer.getSibling(0), commitment2);
-        assertEq(mixer.getSibling(1), commitment01Pair);
+        assertEq(mixer.getDepositSibling(0), commitment2);
+        assertEq(mixer.getDepositSibling(1), commitment01Pair);
 
         uint256 commitment3 = Helper.commitment(45, 1340);
         uint256 commitment23Pair = Helper.hash2(commitment2, commitment3);
@@ -128,8 +131,8 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment3);
         assertEq(mixer.depositNextIndex(), 4);
         assertEq(mixer.depositMerkleRoot(), expectedRoot3);
-        assertEq(mixer.getSibling(0), commitment2);
-        assertEq(mixer.getSibling(1), commitment01Pair);
+        assertEq(mixer.getDepositSibling(0), commitment2);
+        assertEq(mixer.getDepositSibling(1), commitment01Pair);
 
         uint256 commitment4 = Helper.commitment(46, 1341);
         vm.deal(address(this), 1 ether);
