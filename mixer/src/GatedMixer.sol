@@ -183,18 +183,17 @@ contract GatedMixer {
         emit Allowance(commitment, index);
     }
 
-    function isDepositAllowed(
-        uint256 pubMerkleRoot,
-        uint256 pubNullifierHash,
-        bytes calldata zkProof
-    ) internal returns (bool) {
+    function isDepositAllowed(uint256 pubMerkleRoot, uint256 pubNullifierHash, bytes calldata zkProof)
+        internal
+        returns (bool)
+    {
         if (!allowlistEnabled) return true;
 
         if (!isValidAllowanceMerkleRoot(pubMerkleRoot)) {
             revert InvalidMerkleRoot(pubMerkleRoot);
         }
 
-        if( _allowanceUsedNullifiers[pubNullifierHash]) revert NullifierAlreadyUsed(pubNullifierHash);
+        if (_allowanceUsedNullifiers[pubNullifierHash]) revert NullifierAlreadyUsed(pubNullifierHash);
 
         bytes32[] memory pubInputs = new bytes32[](3);
         pubInputs[0] = bytes32(pubMerkleRoot);

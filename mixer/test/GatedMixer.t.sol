@@ -389,7 +389,8 @@ contract GatedMixerTest is Test {
     }
 
     function test_AllowDepositWithdraw() public {
-        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+        GatedMixer mixer =
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
@@ -425,7 +426,8 @@ contract GatedMixerTest is Test {
     }
 
     function test_AllowDeposit_ShouldRevertIfInvalidDepositor() public {
-        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+        GatedMixer mixer =
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
@@ -447,7 +449,8 @@ contract GatedMixerTest is Test {
     }
 
     function test_AllowDeposit_ShouldRevertIfInvalidSecret() public {
-        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+        GatedMixer mixer =
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 43;
         uint256 nullifier = 1337;
@@ -469,7 +472,8 @@ contract GatedMixerTest is Test {
     }
 
     function test_AllowDeposit_ShouldRevertIfInvalidNullifier() public {
-        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+        GatedMixer mixer =
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 42;
         uint256 nullifier = 1338;
@@ -491,7 +495,8 @@ contract GatedMixerTest is Test {
     }
 
     function test_AllowDeposit_ShouldRevertIfInvalidNullifierHash() public {
-        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+        GatedMixer mixer =
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
