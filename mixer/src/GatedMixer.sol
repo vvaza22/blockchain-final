@@ -31,6 +31,7 @@ contract GatedMixer {
     /* the same tree height is used for both allowance and deposit Merkle trees. */
     uint256 public immutable treeHeight;
     uint256 public immutable denomination;
+    bool public immutable allowlistEnabled;
 
     /* placeholders are the initial node values for each level in the Merkle tree */
     uint256[] internal _merkleTreePlaceholders;
@@ -57,7 +58,13 @@ contract GatedMixer {
      * @param _denomination The denomination of the mixer. Must be a valid field element.
      * @param _verifier The address of the Honk verifier contract.
      */
-    constructor(uint256 _treeHeight, uint256 _denomination, address _depositVerifier, address _allowanceVerifier) {
+    constructor(
+        uint256 _treeHeight,
+        uint256 _denomination,
+        address _depositVerifier,
+        address _allowanceVerifier,
+        bool _allowlistEnabled
+    ) {
         if (_treeHeight == 0) revert TreeHeightMustBeNonZero();
         // TODO: check that denomination is a valid field element
         owner = msg.sender;
@@ -65,6 +72,7 @@ contract GatedMixer {
         denomination = _denomination;
         depositVerifier = DepositVerifier(_depositVerifier);
         allowanceVerifier = AllowanceVerifier(_allowanceVerifier);
+        allowlistEnabled = _allowlistEnabled;
         _merkleTreePlaceholders = new uint256[](_treeHeight);
         _depositLeftSibling = new uint256[](_treeHeight);
         _allowanceLeftSibling = new uint256[](_treeHeight);

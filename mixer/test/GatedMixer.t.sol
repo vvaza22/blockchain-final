@@ -41,20 +41,20 @@ contract GatedMixerTest is Test {
         GatedMixer mixer;
 
         vm.expectRevert(TreeHeightMustBeNonZero.selector);
-        mixer = new GatedMixer(0, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        mixer = new GatedMixer(0, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
-        mixer = new GatedMixer(1, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        mixer = new GatedMixer(1, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
         assertEq(mixer.treeHeight(), 1);
 
-        mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
         assertEq(mixer.treeHeight(), 2);
 
-        mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
         assertEq(mixer.treeHeight(), MERKLE_TREE_HEIGHT);
     }
 
     function test_InitialState() public {
-        GatedMixer mixer = new GatedMixer(3, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(3, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 expected = ZERO_PLACEHOLDER;
         assertEq(mixer.getMerklePlaceholder(0), expected);
@@ -73,7 +73,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_InvalidDepositAmount() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
 
@@ -85,7 +85,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_Deposit() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
         assertEq(mixer.depositNextIndex(), 0);
 
         uint256 commitment0 = Helper.commitment(42, 1337);
@@ -144,7 +144,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_DepositAlreadyExists() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
 
@@ -157,7 +157,7 @@ contract GatedMixerTest is Test {
 
     function test_Withdraw() public {
         GatedMixer mixer =
-            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
@@ -188,7 +188,7 @@ contract GatedMixerTest is Test {
 
     function test_Withdraw_InvalidRecipient() public {
         GatedMixer mixer =
-            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
@@ -219,7 +219,7 @@ contract GatedMixerTest is Test {
 
     function test_Withdraw_InvalidSecret() public {
         GatedMixer mixer =
-            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 secret = 41;
         uint256 nullifier = 1337;
@@ -248,7 +248,7 @@ contract GatedMixerTest is Test {
 
     function test_Withdraw_InvalidNullifier() public {
         GatedMixer mixer =
-            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 secret = 42;
         uint256 nullifier = 1338;
@@ -274,7 +274,7 @@ contract GatedMixerTest is Test {
 
     function test_Withdraw_InvalidNullifierHash() public {
         GatedMixer mixer =
-            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
@@ -304,7 +304,7 @@ contract GatedMixerTest is Test {
 
     function test_Withdraw_ShouldNotAllowDoubleSpend() public {
         GatedMixer mixer =
-            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier));
+            new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), false);
 
         uint256 secret = 42;
         uint256 nullifier = 1337;
@@ -340,7 +340,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_Allow() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
         uint256[4] memory secrets = [uint256(100), 300, 500, 700];
         uint256[4] memory nullifiers = [uint256(200), 400, 600, 800];
         uint256[4] memory commitments = [ZERO_PLACEHOLDER, ZERO_PLACEHOLDER, ZERO_PLACEHOLDER, ZERO_PLACEHOLDER];
@@ -362,7 +362,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_Allow_ShouldRevertIfNotAdmin() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 100;
         uint256 nullifier = 200;
@@ -374,7 +374,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_Allow_ShouldRevertIfCommitmentAlreadyExists() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
 
         uint256 secret = 100;
         uint256 nullifier = 200;
