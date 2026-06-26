@@ -6,11 +6,13 @@ import "./Helper.sol";
 import {HonkVerifier as DepositVerifier} from "./verifiers/membership_zk/Verifier.sol";
 import {HonkVerifier as AllowanceVerifier} from "./verifiers/membership_zk/Verifier.sol";
 
+error OnlyAdmin();
 error TreeHeightMustBeNonZero();
 error OutOfBounds();
 error InvalidDepositAmount(uint256 sent, uint256 expected);
 error TreeIsFull(uint256 maxCommitments);
-error CommitmentAlreadyExists(uint256 commitment);
+error DepositAlreadyExists(uint256 commitment);
+error AllowanceAlreadyExists(uint256 commitment);
 error NullifierAlreadyUsed(uint256 nullifier);
 error InvalidMerkleRoot(uint256 merkleRoot);
 error InvalidProof();
@@ -18,10 +20,13 @@ error TransferFailed(address recipient, uint256 amount);
 
 event Deposit(uint256 indexed commitment, uint256 index);
 event Withdraw(uint256 indexed nullifierHash, address indexed recipient, uint256 amount);
+event Allowance(uint256 indexed commitment, uint256 index);
 
 contract GatedMixer {
     DepositVerifier public immutable depositVerifier;
     AllowanceVerifier public immutable allowanceVerifier;
+
+    address public owner;
 
     /* the same tree height is used for both allowance and deposit Merkle trees. */
     uint256 public immutable treeHeight;
@@ -55,6 +60,7 @@ contract GatedMixer {
     constructor(uint256 _treeHeight, uint256 _denomination, address _depositVerifier, address _allowanceVerifier) {
         if (_treeHeight == 0) revert TreeHeightMustBeNonZero();
         // TODO: check that denomination is a valid field element
+        owner = msg.sender;
         treeHeight = _treeHeight;
         denomination = _denomination;
         depositVerifier = DepositVerifier(_depositVerifier);
@@ -63,6 +69,11 @@ contract GatedMixer {
         _depositLeftSibling = new uint256[](_treeHeight);
         _allowanceLeftSibling = new uint256[](_treeHeight);
         _precompute();
+    }
+
+    modifier onlyAdmin() {
+        if (msg.sender != owner) revert OnlyAdmin();
+        _;
     }
 
     function getMerklePlaceholder(uint256 level) external view returns (uint256) {
@@ -94,7 +105,34 @@ contract GatedMixer {
         depositMerkleRoot = current;
     }
 
-    function _insertCommitment(uint256 commitment) internal returns (uint256) {
+    function _insertAllowanceCommitment(uint256 commitment) internal returns (uint256) {
+        uint256 maxCommitments = 1 << treeHeight;
+        if (allowanceNextIndex >= maxCommitments) revert TreeIsFull(maxCommitments);
+
+        uint256 currentIndex = allowanceNextIndex;
+        uint256 currentHash = commitment;
+
+        uint256 left;
+        uint256 right;
+
+        for (uint256 level = 0; level < treeHeight; level++) {
+            if (currentIndex % 2 == 0) {
+                left = currentHash;
+                right = _merkleTreePlaceholders[level];
+                _allowanceLeftSibling[level] = currentHash;
+            } else {
+                left = _allowanceLeftSibling[level];
+                right = currentHash;
+            }
+            currentHash = Helper.hash2(left, right);
+            currentIndex /= 2;
+        }
+
+        allowanceMerkleRoot = currentHash;
+        return allowanceNextIndex++;
+    }
+
+    function _insertDepositCommitment(uint256 commitment) internal returns (uint256) {
         uint256 maxCommitments = 1 << treeHeight;
         if (depositNextIndex >= maxCommitments) revert TreeIsFull(maxCommitments);
 
@@ -125,12 +163,19 @@ contract GatedMixer {
         return root == depositMerkleRoot;
     }
 
+    function allow(uint256 commitment) external onlyAdmin {
+        if (_allowanceCommitments[commitment]) revert AllowanceAlreadyExists(commitment);
+        _allowanceCommitments[commitment] = true;
+        uint256 index = _insertAllowanceCommitment(commitment);
+        emit Allowance(commitment, index);
+    }
+
     function deposit(uint256 commitment) external payable {
         // TODO: Add a protection against reusing the same nullifier with different secret.
         if (msg.value != denomination) revert InvalidDepositAmount(msg.value, denomination);
-        if (_depositCommitments[commitment]) revert CommitmentAlreadyExists(commitment);
+        if (_depositCommitments[commitment]) revert DepositAlreadyExists(commitment);
         _depositCommitments[commitment] = true;
-        uint256 index = _insertCommitment(commitment);
+        uint256 index = _insertDepositCommitment(commitment);
         emit Deposit(commitment, index);
     }
 

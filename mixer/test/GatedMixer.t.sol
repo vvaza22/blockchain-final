@@ -7,7 +7,7 @@ import {
     TreeHeightMustBeNonZero,
     TreeIsFull,
     InvalidDepositAmount,
-    CommitmentAlreadyExists,
+    DepositAlreadyExists,
     NullifierAlreadyUsed,
     InvalidProof,
     Deposit,
@@ -140,7 +140,7 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment4);
     }
 
-    function test_CommitmentAlreadyExists() public {
+    function test_DepositAlreadyExists() public {
         GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
@@ -148,7 +148,7 @@ contract GatedMixerTest is Test {
         mixer.deposit{value: 1 ether}(commitment);
         assertEq(mixer.depositNextIndex(), 1);
 
-        vm.expectRevert(abi.encodeWithSelector(CommitmentAlreadyExists.selector, commitment));
+        vm.expectRevert(abi.encodeWithSelector(DepositAlreadyExists.selector, commitment));
         mixer.deposit{value: 1 ether}(commitment);
     }
 
