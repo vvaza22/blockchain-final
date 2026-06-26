@@ -78,10 +78,10 @@ contract GatedMixerTest is Test {
         vm.deal(address(this), 2 ether);
 
         vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector, 0, 1 ether));
-        mixer.deposit{value: 0}(commitment);
+        mixer.deposit{value: 0}(commitment, 0, 0, new bytes(0));
 
         vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector, 2 ether, 1 ether));
-        mixer.deposit{value: 2 ether}(commitment);
+        mixer.deposit{value: 2 ether}(commitment, 0, 0, new bytes(0));
     }
 
     function test_Deposit() public {
@@ -95,7 +95,7 @@ contract GatedMixerTest is Test {
         vm.deal(address(this), 1 ether);
         vm.expectEmit(true, false, false, true);
         emit Deposit(commitment0, 0);
-        mixer.deposit{value: 1 ether}(commitment0);
+        mixer.deposit{value: 1 ether}(commitment0, 0, 0, new bytes(0));
         assertEq(mixer.depositNextIndex(), 1);
         assertEq(mixer.depositMerkleRoot(), expectedRoot0);
         assertEq(mixer.getDepositSibling(0), commitment0);
@@ -107,7 +107,7 @@ contract GatedMixerTest is Test {
         vm.deal(address(this), 1 ether);
         vm.expectEmit(true, false, false, true);
         emit Deposit(commitment1, 1);
-        mixer.deposit{value: 1 ether}(commitment1);
+        mixer.deposit{value: 1 ether}(commitment1, 0, 0, new bytes(0));
         assertEq(mixer.depositNextIndex(), 2);
         assertEq(mixer.depositMerkleRoot(), expectedRoot1);
         assertEq(mixer.getDepositSibling(0), commitment0);
@@ -119,7 +119,7 @@ contract GatedMixerTest is Test {
         vm.deal(address(this), 1 ether);
         vm.expectEmit(true, false, false, true);
         emit Deposit(commitment2, 2);
-        mixer.deposit{value: 1 ether}(commitment2);
+        mixer.deposit{value: 1 ether}(commitment2, 0, 0, new bytes(0));
         assertEq(mixer.depositNextIndex(), 3);
         assertEq(mixer.depositMerkleRoot(), expectedRoot2);
         assertEq(mixer.getDepositSibling(0), commitment2);
@@ -131,7 +131,7 @@ contract GatedMixerTest is Test {
         vm.deal(address(this), 1 ether);
         vm.expectEmit(true, false, false, true);
         emit Deposit(commitment3, 3);
-        mixer.deposit{value: 1 ether}(commitment3);
+        mixer.deposit{value: 1 ether}(commitment3, 0, 0, new bytes(0));
         assertEq(mixer.depositNextIndex(), 4);
         assertEq(mixer.depositMerkleRoot(), expectedRoot3);
         assertEq(mixer.getDepositSibling(0), commitment2);
@@ -140,7 +140,7 @@ contract GatedMixerTest is Test {
         uint256 commitment4 = Helper.commitment(46, 1341);
         vm.deal(address(this), 1 ether);
         vm.expectRevert(abi.encodeWithSelector(TreeIsFull.selector, 4));
-        mixer.deposit{value: 1 ether}(commitment4);
+        mixer.deposit{value: 1 ether}(commitment4, 0, 0, new bytes(0));
     }
 
     function test_DepositAlreadyExists() public {
@@ -148,11 +148,11 @@ contract GatedMixerTest is Test {
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
 
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
         assertEq(mixer.depositNextIndex(), 1);
 
         vm.expectRevert(abi.encodeWithSelector(DepositAlreadyExists.selector, commitment));
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
     }
 
     function test_Withdraw() public {
@@ -166,7 +166,7 @@ contract GatedMixerTest is Test {
         address recipientAddress = address(0xdeadbeef);
 
         vm.deal(address(this), 1 ether);
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
 
         // Make sure current state matches proof inputs
         assertEq(mixer.depositMerkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
@@ -198,7 +198,7 @@ contract GatedMixerTest is Test {
         address recipientAddress = address(0xfacade);
 
         vm.deal(address(this), 1 ether);
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
 
         // Make sure current state matches proof inputs
         assertEq(mixer.depositMerkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
@@ -228,7 +228,7 @@ contract GatedMixerTest is Test {
         address recipientAddress = address(0xdeadbeef);
 
         vm.deal(address(this), 1 ether);
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
 
         // Make sure current state matches proof inputs
         assertEq(nullifierHash, 0x20acec73efd6aaaea03cb4edf525c0e4e680a5b4175a4063f7a2456975bd789a);
@@ -257,7 +257,7 @@ contract GatedMixerTest is Test {
         address recipientAddress = address(0xdeadbeef);
 
         vm.deal(address(this), 1 ether);
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
 
         // Read the proof file
         bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
@@ -284,7 +284,7 @@ contract GatedMixerTest is Test {
         address recipientAddress = address(0xdeadbeef);
 
         vm.deal(address(this), 1 ether);
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
 
         // Make sure current state matches proof inputs
         assertEq(mixer.depositMerkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
@@ -313,7 +313,7 @@ contract GatedMixerTest is Test {
         address recipientAddress = address(0xdeadbeef);
 
         vm.deal(address(this), 1 ether);
-        mixer.deposit{value: 1 ether}(commitment);
+        mixer.deposit{value: 1 ether}(commitment, 0, 0, new bytes(0));
 
         // Make sure current state matches proof inputs
         assertEq(mixer.depositMerkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);

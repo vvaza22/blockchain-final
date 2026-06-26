@@ -14,6 +14,7 @@ error TreeIsFull(uint256 maxCommitments);
 error DepositAlreadyExists(uint256 commitment);
 error AllowanceAlreadyExists(uint256 commitment);
 error NullifierAlreadyUsed(uint256 nullifier);
+error DepositNotAllowed();
 error InvalidMerkleRoot(uint256 merkleRoot);
 error InvalidProof();
 error TransferFailed(address recipient, uint256 amount);
@@ -79,7 +80,7 @@ contract GatedMixer {
         _precompute();
     }
 
-    modifier onlyAdmin() {
+    modifier adminGuard() {
         if (msg.sender != owner) revert OnlyAdmin();
         _;
     }
@@ -171,15 +172,31 @@ contract GatedMixer {
         return root == depositMerkleRoot;
     }
 
-    function allow(uint256 commitment) external onlyAdmin {
+    function allow(uint256 commitment) external adminGuard {
         if (_allowanceCommitments[commitment]) revert AllowanceAlreadyExists(commitment);
         _allowanceCommitments[commitment] = true;
         uint256 index = _insertAllowanceCommitment(commitment);
         emit Allowance(commitment, index);
     }
 
-    function deposit(uint256 commitment) external payable {
-        // TODO: Add a protection against reusing the same nullifier with different secret.
+    function isDepositAllowed(uint256 commitment) internal returns (bool) {
+        if (!allowlistEnabled) return true;
+        return true;
+    }
+
+    function deposit(
+        uint256 commitment,
+        // Caller needs to prove they are allowed to deposit
+        uint256 pubMerkleRoot,
+        uint256 pubNullifierHash,
+        bytes calldata zkProof
+    )
+        external
+        payable
+    {
+        if (!isDepositAllowed(commitment)) revert DepositNotAllowed();
+
+        // TODO: Add a protection against reusing the same nullifier with a different secret.
         if (msg.value != denomination) revert InvalidDepositAmount(msg.value, denomination);
         if (_depositCommitments[commitment]) revert DepositAlreadyExists(commitment);
         _depositCommitments[commitment] = true;
