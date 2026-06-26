@@ -387,4 +387,128 @@ contract GatedMixerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(AllowanceAlreadyExists.selector, commitment));
         mixer.allow(commitment);
     }
+
+    function test_AllowDepositWithdraw() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        vm.expectEmit(true, false, false, true);
+        emit Allowance(commitment, 0);
+        mixer.allow(commitment);
+
+        // Now we can deposit using the allowed commitment
+        address depositor = address(0x12345678);
+        vm.deal(depositor, 1 ether);
+
+        bytes memory proof = vm.readFileBinary("test/data/allowance_proof_leaf0.bin");
+        uint256 merkleRoot = mixer.allowanceMerkleRoot();
+        vm.prank(depositor);
+        vm.expectEmit(true, false, false, true);
+        emit Deposit(commitment, 0);
+        mixer.deposit{value: 1 ether}(commitment, merkleRoot, nullifierHash, proof);
+
+        bytes memory proofWithdraw = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        address recipientAddress = address(0xdeadbeef);
+        merkleRoot = mixer.depositMerkleRoot();
+        uint256 balanceBefore = recipientAddress.balance;
+        vm.expectEmit(true, false, false, true);
+        emit Withdraw(nullifierHash, recipientAddress, 1 ether);
+        mixer.withdraw(merkleRoot, nullifierHash, payable(recipientAddress), proofWithdraw);
+
+        // Make sure the recipient received the funds
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter - balanceBefore, 1 ether);
+    }
+
+    function test_AllowDeposit_ShouldRevertIfInvalidDepositor() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        vm.expectEmit(true, false, false, true);
+        emit Allowance(commitment, 0);
+        mixer.allow(commitment);
+
+        // Now we can deposit using the allowed commitment
+        address depositor = address(0x12345679);
+        vm.deal(depositor, 1 ether);
+
+        bytes memory proof = vm.readFileBinary("test/data/allowance_proof_leaf0.bin");
+        uint256 merkleRoot = mixer.allowanceMerkleRoot();
+        vm.prank(depositor);
+        vm.expectRevert(AllowanceVerifierErrors.SumcheckFailed.selector);
+        mixer.deposit{value: 1 ether}(commitment, merkleRoot, nullifierHash, proof);
+    }
+
+    function test_AllowDeposit_ShouldRevertIfInvalidSecret() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+
+        uint256 secret = 43;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        vm.expectEmit(true, false, false, true);
+        emit Allowance(commitment, 0);
+        mixer.allow(commitment);
+
+        // Now we can deposit using the allowed commitment
+        address depositor = address(0x12345678);
+        vm.deal(depositor, 1 ether);
+
+        bytes memory proof = vm.readFileBinary("test/data/allowance_proof_leaf0.bin");
+        uint256 merkleRoot = mixer.allowanceMerkleRoot();
+        vm.prank(depositor);
+        vm.expectRevert(AllowanceVerifierErrors.SumcheckFailed.selector);
+        mixer.deposit{value: 1 ether}(commitment, merkleRoot, nullifierHash, proof);
+    }
+
+    function test_AllowDeposit_ShouldRevertIfInvalidNullifier() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+
+        uint256 secret = 42;
+        uint256 nullifier = 1338;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        vm.expectEmit(true, false, false, true);
+        emit Allowance(commitment, 0);
+        mixer.allow(commitment);
+
+        // Now we can deposit using the allowed commitment
+        address depositor = address(0x12345678);
+        vm.deal(depositor, 1 ether);
+
+        bytes memory proof = vm.readFileBinary("test/data/allowance_proof_leaf0.bin");
+        uint256 merkleRoot = mixer.allowanceMerkleRoot();
+        vm.prank(depositor);
+        vm.expectRevert(AllowanceVerifierErrors.SumcheckFailed.selector);
+        mixer.deposit{value: 1 ether}(commitment, merkleRoot, nullifierHash, proof);
+    }
+
+    function test_AllowDeposit_ShouldRevertIfInvalidNullifierHash() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(depositVerifier), address(allowanceVerifier), true);
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(1338);
+        vm.expectEmit(true, false, false, true);
+        emit Allowance(commitment, 0);
+        mixer.allow(commitment);
+
+        // Now we can deposit using the allowed commitment
+        address depositor = address(0x12345678);
+        vm.deal(depositor, 1 ether);
+
+        bytes memory proof = vm.readFileBinary("test/data/allowance_proof_leaf0.bin");
+        uint256 merkleRoot = mixer.allowanceMerkleRoot();
+        vm.prank(depositor);
+        vm.expectRevert(AllowanceVerifierErrors.SumcheckFailed.selector);
+        mixer.deposit{value: 1 ether}(commitment, merkleRoot, nullifierHash, proof);
+    }
 }

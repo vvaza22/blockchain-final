@@ -168,8 +168,12 @@ contract GatedMixer {
         return depositNextIndex++;
     }
 
-    function isValidMerkleRoot(uint256 root) internal view returns (bool) {
+    function isValidDepositMerkleRoot(uint256 root) internal view returns (bool) {
         return root == depositMerkleRoot;
+    }
+
+    function isValidAllowanceMerkleRoot(uint256 root) internal view returns (bool) {
+        return root == allowanceMerkleRoot;
     }
 
     function allow(uint256 commitment) external adminGuard {
@@ -179,8 +183,25 @@ contract GatedMixer {
         emit Allowance(commitment, index);
     }
 
-    function isDepositAllowed(uint256 commitment) internal returns (bool) {
+    function isDepositAllowed(
+        uint256 pubMerkleRoot,
+        uint256 pubNullifierHash,
+        bytes calldata zkProof
+    ) internal returns (bool) {
         if (!allowlistEnabled) return true;
+
+        if (!isValidAllowanceMerkleRoot(pubMerkleRoot)) {
+            revert InvalidMerkleRoot(pubMerkleRoot);
+        }
+
+        if( _allowanceUsedNullifiers[pubNullifierHash]) revert NullifierAlreadyUsed(pubNullifierHash);
+
+        bytes32[] memory pubInputs = new bytes32[](3);
+        pubInputs[0] = bytes32(pubMerkleRoot);
+        pubInputs[1] = bytes32(pubNullifierHash);
+        pubInputs[2] = bytes32(uint256(uint160(address(msg.sender))));
+        if (!allowanceVerifier.verify(zkProof, pubInputs)) revert InvalidProof();
+
         return true;
     }
 
@@ -194,7 +215,7 @@ contract GatedMixer {
         external
         payable
     {
-        if (!isDepositAllowed(commitment)) revert DepositNotAllowed();
+        if (!isDepositAllowed(pubMerkleRoot, pubNullifierHash, zkProof)) revert DepositNotAllowed();
 
         // TODO: Add a protection against reusing the same nullifier with a different secret.
         if (msg.value != denomination) revert InvalidDepositAmount(msg.value, denomination);
@@ -210,7 +231,7 @@ contract GatedMixer {
         address payable recipientAddress,
         bytes calldata zkProof
     ) external {
-        if (!isValidMerkleRoot(pubMerkleRoot)) {
+        if (!isValidDepositMerkleRoot(pubMerkleRoot)) {
             revert InvalidMerkleRoot(pubMerkleRoot);
         }
         if (_depositUsedNullifiers[pubNullifierHash]) revert NullifierAlreadyUsed(pubNullifierHash);
