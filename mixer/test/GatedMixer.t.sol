@@ -13,26 +13,33 @@ import {
 import {ZERO_PLACEHOLDER, MAX_FIELD, MERKLE_TREE_HEIGHT} from "../src/Constants.sol";
 import "forge-std/console.sol";
 import "../src/Helper.sol";
+import {HonkVerifier} from "../src/verifiers/membership_zk/Verifier.sol";
 
 contract GatedMixerTest is Test {
+    HonkVerifier verifier;
+
+    function setUp() public {
+        verifier = new HonkVerifier();
+    }
+
     function test_Constructor() public {
         GatedMixer mixer;
 
         vm.expectRevert(TreeHeightMustBeNonZero.selector);
-        mixer = new GatedMixer(0, 1 ether);
+        mixer = new GatedMixer(0, 1 ether, address(verifier));
 
-        mixer = new GatedMixer(1, 1 ether);
+        mixer = new GatedMixer(1, 1 ether, address(verifier));
         assertEq(mixer.treeHeight(), 1);
 
-        mixer = new GatedMixer(2, 1 ether);
+        mixer = new GatedMixer(2, 1 ether, address(verifier));
         assertEq(mixer.treeHeight(), 2);
 
-        mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether);
+        mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
         assertEq(mixer.treeHeight(), MERKLE_TREE_HEIGHT);
     }
 
     function test_InitialState() public {
-        GatedMixer mixer = new GatedMixer(3, 1 ether);
+        GatedMixer mixer = new GatedMixer(3, 1 ether, address(verifier));
 
         uint256 expected = ZERO_PLACEHOLDER;
         assertEq(mixer.getPlaceholder(0), expected);
@@ -48,7 +55,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_InvalidDepositAmount() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether);
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(verifier));
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
 
@@ -60,7 +67,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_Deposit() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether);
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(verifier));
         assertEq(mixer.nextIndex(), 0);
 
         uint256 commitment0 = Helper.commitment(42, 1337);
@@ -119,7 +126,7 @@ contract GatedMixerTest is Test {
     }
 
     function test_CommitmentAlreadyExists() public {
-        GatedMixer mixer = new GatedMixer(2, 1 ether);
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(verifier));
         uint256 commitment = Helper.commitment(42, 1337);
         vm.deal(address(this), 2 ether);
 
@@ -128,5 +135,32 @@ contract GatedMixerTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(CommitmentAlreadyExists.selector, commitment));
         mixer.deposit{value: 1 ether}(commitment);
+    }
+
+    function test_Withdraw() public {
+        GatedMixer mixer = new GatedMixer(MERKLE_TREE_HEIGHT, 1 ether, address(verifier));
+
+        uint256 secret = 42;
+        uint256 nullifier = 1337;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+        uint256 nullifierHash = Helper.hash1(nullifier);
+        address recipientAddress = address(0xdeadbeef);
+
+        vm.deal(address(this), 1 ether);
+        mixer.deposit{value: 1 ether}(commitment);
+
+        // Make sure current state matches proof inputs
+        assertEq(mixer.merkleRoot(), 0x1d1647c0bf0973bc20991fb942e6ce68891eddbc9d9596e09bb9c7bc7805ea8b);
+        assertEq(nullifierHash, 0x20acec73efd6aaaea03cb4edf525c0e4e680a5b4175a4063f7a2456975bd789a);
+
+        // Read the proof file
+        bytes memory proof = vm.readFileBinary("test/data/proof_leaf0.bin");
+
+        uint256 balanceBefore = recipientAddress.balance;
+        mixer.withdraw(mixer.merkleRoot(), nullifierHash, payable(recipientAddress), proof);
+
+        // Make sure the recipient received the funds
+        uint256 balanceAfter = recipientAddress.balance;
+        assertEq(balanceAfter - balanceBefore, 1 ether);
     }
 }

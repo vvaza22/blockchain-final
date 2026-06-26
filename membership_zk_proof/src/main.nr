@@ -53,25 +53,39 @@ fn test_merkle_membership_proof_leaf_0() {
     let nullifier = Field::from(1337);
 
     let commitment = hash_2([secret, nullifier]);
+    println(f"commitment = \"{commitment}\"");
+
     let nullifier_hash = hash_1([nullifier]);
+    println(f"nullifier_hash = \"{nullifier_hash}\"");
 
     let placeholders = compute_placeholders();
     let siblings = placeholders;
+    println("siblings:");
+    for i in 0..MERKLE_TREE_HEIGHT {
+        let value = siblings[i];
+        println(f"\"{value}\",");
+    }
 
     // Pick the very first leaf node for this test
-    let path_indices: [Field; MERKLE_TREE_HEIGHT] = [0; MERKLE_TREE_HEIGHT];
-
-    let mut merkleRoot = commitment;
+    let path: [Field; MERKLE_TREE_HEIGHT] = [0; MERKLE_TREE_HEIGHT];
+    println("path:");
     for i in 0..MERKLE_TREE_HEIGHT {
-        merkleRoot = hash_2([merkleRoot, siblings[i]]);
+        let printValue = path[i];
+        println(f"\"{printValue}\",");
     }
+
+    let mut merkle_root = commitment;
+    for i in 0..MERKLE_TREE_HEIGHT {
+        merkle_root = hash_2([merkle_root, siblings[i]]);
+    }
+    println(f"merkle_root = \"{merkle_root}\"");
 
     main(
         secret,
         nullifier,
         siblings,
-        path_indices,
-        merkleRoot,
+        path,
+        merkle_root,
         nullifier_hash,
         Field::from(0xdeadbeef),
     );
