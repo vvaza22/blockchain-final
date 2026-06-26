@@ -9,9 +9,12 @@ import {
     InvalidDepositAmount,
     DepositAlreadyExists,
     NullifierAlreadyUsed,
+    AllowanceAlreadyExists,
     InvalidProof,
     Deposit,
-    Withdraw
+    Withdraw,
+    Allowance,
+    OnlyAdmin
 } from "../src/GatedMixer.sol";
 import {ZERO_PLACEHOLDER, MAX_FIELD, MERKLE_TREE_HEIGHT} from "../src/Constants.sol";
 import "forge-std/console.sol";
@@ -334,5 +337,54 @@ contract GatedMixerTest is Test {
         // Make sure nothing changed
         uint256 balanceAfterSecondAttempt = recipientAddress.balance;
         assertEq(balanceAfterSecondAttempt, balanceAfter);
+    }
+
+    function test_Allow() public {
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+        uint256[4] memory secrets = [uint256(100), 300, 500, 700];
+        uint256[4] memory nullifiers = [uint256(200), 400, 600, 800];
+        uint256[4] memory commitments = [ZERO_PLACEHOLDER, ZERO_PLACEHOLDER, ZERO_PLACEHOLDER, ZERO_PLACEHOLDER];
+
+        for (uint256 i = 0; i < 4; i++) {
+            commitments[i] = Helper.commitment(secrets[i], nullifiers[i]);
+            vm.expectEmit(true, false, false, true);
+            emit Allowance(commitments[i], i);
+            mixer.allow(commitments[i]);
+            uint256 rootA = Helper.hash2(commitments[0], commitments[1]);
+            uint256 rootB = Helper.hash2(commitments[2], commitments[3]);
+            uint256 expectedRoot = Helper.hash2(rootA, rootB);
+            assertEq(mixer.allowanceMerkleRoot(), expectedRoot);
+        }
+
+        uint256 newCommitment = Helper.commitment(900, 1000);
+        vm.expectRevert(abi.encodeWithSelector(TreeIsFull.selector, 4));
+        mixer.allow(newCommitment);
+    }
+
+    function test_Allow_ShouldRevertIfNotAdmin() public {
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+
+        uint256 secret = 100;
+        uint256 nullifier = 200;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+
+        vm.prank(address(0x1234));
+        vm.expectRevert(OnlyAdmin.selector);
+        mixer.allow(commitment);
+    }
+
+    function test_Allow_ShouldRevertIfCommitmentAlreadyExists() public {
+        GatedMixer mixer = new GatedMixer(2, 1 ether, address(depositVerifier), address(allowanceVerifier));
+
+        uint256 secret = 100;
+        uint256 nullifier = 200;
+        uint256 commitment = Helper.commitment(secret, nullifier);
+
+        vm.expectEmit(true, false, false, true);
+        emit Allowance(commitment, 0);
+        mixer.allow(commitment);
+
+        vm.expectRevert(abi.encodeWithSelector(AllowanceAlreadyExists.selector, commitment));
+        mixer.allow(commitment);
     }
 }
