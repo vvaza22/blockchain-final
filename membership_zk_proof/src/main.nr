@@ -35,7 +35,8 @@ fn main(
     }
 
     assert(current_hash == pub_merkle_root);
-    let _bound = recipient_address * recipient_address;
+    // This is here just to avoid unused variable warnings
+    let _ = recipient_address;
 }
 
 fn compute_placeholders() -> [Field; MERKLE_TREE_HEIGHT] {
