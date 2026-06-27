@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   createWalletClient,
   createPublicClient,
@@ -239,9 +239,28 @@ async function getDeposits() {
   // Sort by indices in an ascending order
   leaves.sort((a, b) => a.index - b.index);
 
-  console.log("allowances:", leaves);
+  console.log("deposits:", leaves);
 
   return leaves;
+}
+
+async function getWithdraws() {
+  const logs = await pubClient.getLogs({
+    address: CONTRACT_ADDRESS,
+    event: parseAbiItem(
+      "event Withdraw(uint256 indexed nullifierHash, address indexed recipient, uint256 amount)",
+    ),
+    fromBlock: 0n,
+    toBlock: "latest",
+  });
+
+  const result = logs.map((log) => ({
+    nullifierHash: toHexString(log.args.nullifierHash!),
+  }));
+
+  console.log("withdraws:", result);
+
+  return result;
 }
 
 async function getAllowances() {
@@ -271,15 +290,39 @@ function App() {
   const [allowanceSecret, setAllowanceSecret] = useState("");
   const [allowanceNullifier, setAllowanceNullifier] = useState("");
   const [allowanceCommitment, setAllowanceCommitment] = useState("");
+  const [allowanceList, setAllowanceList] = useState<string[]>([]);
 
   const [depositSecret, setDepositSecret] = useState("");
   const [depositNullifier, setDepositNullifier] = useState("");
   const [depositCommitment, setDepositCommitment] = useState("");
+  const [depositList, setDepositList] = useState<string[]>([]);
 
   const [allowCommitment, setAllowCommitment] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
 
   const [withdrawUser, setWithdrawUser] = useState("");
+  const [withdrawList, setWithdrawList] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchAllowances = async () => {
+      const alList = await getAllowances();
+      setAllowanceList(alList.map((l) => l.commitment));
+    };
+
+    const fetchDeposits = async () => {
+      const depList = await getDeposits();
+      setDepositList(depList.map((l) => l.commitment));
+    };
+
+    const fetchWithdraws = async () => {
+      const wdList = await getWithdraws();
+      setWithdrawList(wdList.map((l) => l.nullifierHash));
+    };
+
+    fetchAllowances();
+    fetchDeposits();
+    fetchWithdraws();
+  }, []);
 
   const handleGenerateAllowanceCommitment = async (
     secret: string,
@@ -301,12 +344,36 @@ function App() {
 
   const handleAllow = async () => {
     await sendAllowRequest(allowCommitment);
-    await getAllowances();
+    const alList = await getAllowances();
+    setAllowanceList(alList.map((l) => l.commitment));
+  };
+
+  const handleDeposit = async () => {
+    await generateProofAndDeposit(
+      allowanceSecret,
+      allowanceNullifier,
+      depositSecret,
+      depositNullifier,
+      selectedUser,
+    );
+    const depList = await getDeposits();
+    setDepositList(depList.map((l) => l.commitment));
+  };
+
+  const handleWithdraw = async () => {
+    await generateProofAndWithdraw(
+      depositSecret,
+      depositNullifier,
+      withdrawUser,
+    );
+    const wdList = await getWithdraws();
+    setWithdrawList(wdList.map((l) => l.nullifierHash));
   };
 
   return (
     <div className="w-full">
       <div className="p-2">
+        <h3>Admin Only</h3>
         <div className="p-2">
           <div className="flex flex-row gap-2">
             <Input
@@ -321,6 +388,20 @@ function App() {
           </div>
         </div>
 
+        <div className="p-2">
+          {allowanceList.length > 0 && (
+            <div>
+              <h5>Allowances:</h5>
+              <ul>
+                {allowanceList.map((commitment, index) => (
+                  <li key={index}>{commitment}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <h3>User Space</h3>
         <div className="p-2 flex flex-col gap-2">
           <Select>
             <SelectTrigger className="w-full">
@@ -405,19 +486,26 @@ function App() {
 
         <div className="p-2 flex flex-col gap-2">
           <Button
-            onClick={() =>
-              generateProofAndDeposit(
-                allowanceSecret,
-                allowanceNullifier,
-                depositSecret,
-                depositNullifier,
-                selectedUser,
-              )
-            }
+            onClick={() => {
+              handleDeposit();
+            }}
             variant="outline"
           >
             DEPOSIT 1 ETH
           </Button>
+        </div>
+
+        <div className="p-2">
+          {depositList.length > 0 && (
+            <div>
+              <h5>Deposits:</h5>
+              <ul>
+                {depositList.map((commitment, index) => (
+                  <li key={index}>{commitment}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="p-2 flex flex-col gap-2">
@@ -445,18 +533,22 @@ function App() {
         </div>
 
         <div className="p-2 flex flex-col gap-2">
-          <Button
-            onClick={() =>
-              generateProofAndWithdraw(
-                depositSecret,
-                depositNullifier,
-                withdrawUser,
-              )
-            }
-            variant="outline"
-          >
+          <Button onClick={() => handleWithdraw()} variant="outline">
             WITHDRAW 1 ETH
           </Button>
+        </div>
+
+        <div className="p-2">
+          {withdrawList.length > 0 && (
+            <div>
+              <h5>Withdraws:</h5>
+              <ul>
+                {withdrawList.map((nullifierHash, index) => (
+                  <li key={index}>{nullifierHash}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>
