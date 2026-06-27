@@ -24,8 +24,9 @@ import {
   SelectValue,
 } from "@/shadcn/components/ui/select";
 import { computeAllowanceProof } from "./zkAllowance";
-import { walker } from "./walker";
+import { walker, walkerWithdraw } from "./walker";
 import { CONTRACT_ADDRESS } from "./constants";
+import { computeDepositProof } from "./zkDeposit";
 
 const admin = privateKeyToAccount(
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
@@ -55,6 +56,37 @@ const pubClient = createPublicClient({
   chain: foundry,
   transport: http("http://127.0.0.1:8545"),
 });
+
+async function doWithdraw(
+  pubMerkleRoot: string,
+  pubNullifierHash: string,
+  recipientAddress: string,
+  proofHex: string,
+) {
+  console.log(
+    "Do withdraw with params: ",
+    pubMerkleRoot,
+    pubNullifierHash,
+    recipientAddress,
+    proofHex,
+  );
+
+  // uint256 pubMerkleRoot,
+  // uint256 pubNullifierHash,
+  // address payable recipientAddress,
+  // bytes calldata zkProof
+  const hash = await adminClient.writeContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: "withdraw",
+    args: [pubMerkleRoot, pubNullifierHash, recipientAddress, proofHex],
+  });
+
+  const receipt = await pubClient.waitForTransactionReceipt({ hash });
+  console.log("WITHDRAW, status:", receipt.status);
+
+  return receipt;
+}
 
 async function makeDeposit(
   newCommitment: string,
@@ -102,6 +134,37 @@ async function makeDeposit(
   return receipt;
 }
 
+async function generateProofAndWithdraw(
+  depositSecret: string,
+  depositNullifier: string,
+  selectedUser: string,
+) {
+  const leaves = await getDeposits();
+  console.log("deposit leaves:", leaves);
+
+  const args = await walkerWithdraw(
+    depositSecret,
+    depositNullifier,
+    selectedUser,
+    leaves,
+  );
+  console.log("generated withdraw proof args:", args);
+
+  const proof = await computeDepositProof(args);
+  console.log("generated deposit proof:", proof);
+
+  // uint256 pubMerkleRoot,
+  // uint256 pubNullifierHash,
+  // address payable recipientAddress,
+  // bytes calldata zkProof
+  await doWithdraw(
+    args["pub_merkle_root"],
+    args["pub_nullifier_hash"],
+    selectedUser,
+    toHex(proof),
+  );
+}
+
 async function generateProofAndDeposit(
   allowanceSecret: string,
   allowanceNullifier: string,
@@ -140,28 +203,45 @@ async function generateProofAndDeposit(
 async function sendAllowRequest(commitment: string) {
   commitment = commitment.trim();
   console.log("sending allow request for allowance commitment:", commitment);
-  try {
-    const hash = await adminClient.writeContract({
-      address: CONTRACT_ADDRESS,
-      abi: ABI,
-      functionName: "allow",
-      args: [BigInt(commitment)],
-    });
 
-    console.log("tx sent:", hash);
+  const hash = await adminClient.writeContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: "allow",
+    args: [BigInt(commitment)],
+  });
 
-    const receipt = await pubClient.waitForTransactionReceipt({ hash });
-    console.log("mined, status:", receipt.status);
+  const receipt = await pubClient.waitForTransactionReceipt({ hash });
+  console.log("ALLOW, status:", receipt.status);
 
-    return receipt;
-  } catch (err) {
-    console.error("allow failed:", err);
-    throw err;
-  }
+  return receipt;
 }
 
 function toHexString(value: bigint): string {
   return "0x" + value.toString(16);
+}
+
+async function getDeposits() {
+  const logs = await pubClient.getLogs({
+    address: CONTRACT_ADDRESS,
+    event: parseAbiItem(
+      "event Deposit(uint256 indexed commitment, uint256 index)",
+    ),
+    fromBlock: 0n,
+    toBlock: "latest",
+  });
+
+  const leaves = logs.map((log) => ({
+    commitment: toHexString(log.args.commitment!),
+    index: Number(log.args.index),
+  }));
+
+  // Sort by indices in an ascending order
+  leaves.sort((a, b) => a.index - b.index);
+
+  console.log("allowances:", leaves);
+
+  return leaves;
 }
 
 async function getAllowances() {
@@ -198,6 +278,8 @@ function App() {
 
   const [allowCommitment, setAllowCommitment] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
+
+  const [withdrawUser, setWithdrawUser] = useState("");
 
   const handleGenerateAllowanceCommitment = async (
     secret: string,
@@ -335,6 +417,45 @@ function App() {
             variant="outline"
           >
             DEPOSIT 1 ETH
+          </Button>
+        </div>
+
+        <div className="p-2 flex flex-col gap-2">
+          <Select>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Withdraw user" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {users.map((user, index) => (
+                  <SelectItem
+                    key={index}
+                    value={user.address}
+                    onClick={() => {
+                      console.log("selected withdraw user:", user.address);
+                      setWithdrawUser(user.address);
+                    }}
+                  >
+                    {user.address}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="p-2 flex flex-col gap-2">
+          <Button
+            onClick={() =>
+              generateProofAndWithdraw(
+                depositSecret,
+                depositNullifier,
+                withdrawUser,
+              )
+            }
+            variant="outline"
+          >
+            WITHDRAW 1 ETH
           </Button>
         </div>
       </div>
